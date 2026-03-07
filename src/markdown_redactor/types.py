@@ -10,6 +10,9 @@ class RedactionConfig:
     mask: str = "[REDACTED]"
     skip_fenced_code_blocks: bool = True
     skip_inline_code: bool = True
+    allowlist: tuple[str, ...] = ()
+    enabled_rule_names: tuple[str, ...] | None = None
+    disabled_rule_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from .markdown import segment_markdown
 from .registry import RuleRegistry
-from .types import RedactionConfig, RedactionResult, RedactionStats, RuleContext
+from .types import RedactionConfig, RedactionResult, RedactionRule, RedactionStats, RuleContext
 
 
 class RedactionEngine:
@@ -29,6 +29,7 @@ class RedactionEngine:
         start = time.perf_counter()
         rule_counts: defaultdict[str, int] = defaultdict(int)
         output: list[str] = []
+        active_rules = self._active_rules(active_config)
 
         for segment in segment_markdown(
             content,
@@ -39,11 +40,12 @@ class RedactionEngine:
                 output.append(segment.text)
                 continue
 
-            updated = segment.text
-            for rule in self._registry.list_rules():
+            updated, placeholders = self._protect_allowlist(segment.text, active_config)
+            for rule in active_rules:
                 updated, count = rule.redact(updated, active_config, active_context)
                 if count:
                     rule_counts[rule.name] += count
+            updated = self._restore_allowlist(updated, placeholders)
             output.append(updated)
 
         redacted_content = "".join(output)
@@ -60,3 +62,38 @@ class RedactionEngine:
                 output_bytes=len(redacted_content.encode("utf-8")),
             ),
         )
+
+    def _active_rules(self, config: RedactionConfig) -> tuple[RedactionRule, ...]:
+        rules = self._registry.list_rules()
+        enabled = set(config.enabled_rule_names) if config.enabled_rule_names is not None else None
+        disabled = set(config.disabled_rule_names)
+
+        return tuple(
+            rule
+            for rule in rules
+            if (enabled is None or rule.name in enabled) and rule.name not in disabled
+        )
+
+    def _protect_allowlist(
+        self,
+        content: str,
+        config: RedactionConfig,
+    ) -> tuple[str, dict[str, str]]:
+        if not config.allowlist:
+            return content, {}
+
+        placeholders: dict[str, str] = {}
+        updated = content
+        for index, value in enumerate(sorted(set(config.allowlist), key=len, reverse=True)):
+            if not value or value not in updated:
+                continue
+            placeholder = f"\x00MR_ALLOWLIST_{index}\x00"
+            updated = updated.replace(value, placeholder)
+            placeholders[placeholder] = value
+        return updated, placeholders
+
+    def _restore_allowlist(self, content: str, placeholders: dict[str, str]) -> str:
+        updated = content
+        for placeholder, value in placeholders.items():
+            updated = updated.replace(placeholder, value)
+        return updated

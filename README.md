@@ -67,7 +67,7 @@ pip install markdown-redactor
 Or install from source:
 
 ```bash
-pipp install -e .
+pip install -e .
 ```
 
 ### 2) Redact text in Python
@@ -125,6 +125,30 @@ config = RedactionConfig(
 )
 
 result = engine.redact(content, config=config)
+```
+
+### Allowlist specific values
+
+Use `allowlist` when a value looks sensitive but should remain visible.
+
+```python
+config = RedactionConfig(
+    allowlist=("jane@example.com", "10.0.0.1"),
+)
+```
+
+### Enable or disable specific rules
+
+Only enable chosen rules:
+
+```python
+config = RedactionConfig(enabled_rule_names=("email", "jwt"))
+```
+
+Disable specific rules:
+
+```python
+config = RedactionConfig(disabled_rule_names=("phone", "swift_bic"))
 ```
 
 ### Add context metadata (optional)

@@ -60,6 +60,40 @@ def test_custom_mask() -> None:
     assert "<secret>" in result.content
 
 
+def test_allowlist_preserves_exact_values() -> None:
+    engine = create_default_engine()
+    content = "email jane@example.com ip 10.0.0.1"
+
+    result = engine.redact(content, config=RedactionConfig(allowlist=("jane@example.com",)))
+
+    assert "jane@example.com" in result.content
+    assert "10.0.0.1" not in result.content
+    assert result.stats.rule_matches.get("email", 0) == 0
+    assert result.stats.rule_matches.get("ipv4", 0) == 1
+
+
+def test_disabled_rule_names_skip_specific_default_rules() -> None:
+    engine = create_default_engine()
+    content = "email jane@example.com ip 10.0.0.1"
+
+    result = engine.redact(content, config=RedactionConfig(disabled_rule_names=("email",)))
+
+    assert "jane@example.com" in result.content
+    assert "10.0.0.1" not in result.content
+    assert result.stats.rule_matches.get("email", 0) == 0
+
+
+def test_enabled_rule_names_limit_active_rules() -> None:
+    engine = create_default_engine()
+    content = "email jane@example.com ip 10.0.0.1"
+
+    result = engine.redact(content, config=RedactionConfig(enabled_rule_names=("email",)))
+
+    assert "jane@example.com" not in result.content
+    assert "10.0.0.1" in result.content
+    assert result.stats.rule_matches == {"email": 1}
+
+
 def test_empty_registry_leaves_content_unchanged() -> None:
     engine = RedactionEngine(registry=RuleRegistry())
     content = "No secret data here"
