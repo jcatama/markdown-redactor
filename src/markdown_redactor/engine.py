@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from pathlib import Path
 
 from .markdown import segment_markdown
 from .registry import RuleRegistry
@@ -63,6 +64,37 @@ class RedactionEngine:
             ),
         )
 
+    def redact_file(
+        self,
+        file_path: str | Path,
+        *,
+        config: RedactionConfig | None = None,
+        context: RuleContext | None = None,
+        encoding: str = "utf-8",
+    ) -> RedactionResult:
+        path = Path(file_path)
+        source = path.read_text(encoding=encoding)
+        active_context = self._context_with_file_path(context, str(path))
+        return self.redact(source, config=config, context=active_context)
+
+    def redact_to_file(
+        self,
+        input_path: str | Path,
+        output_path: str | Path,
+        *,
+        config: RedactionConfig | None = None,
+        context: RuleContext | None = None,
+        encoding: str = "utf-8",
+    ) -> RedactionResult:
+        result = self.redact_file(
+            input_path,
+            config=config,
+            context=context,
+            encoding=encoding,
+        )
+        Path(output_path).write_text(result.content, encoding=encoding)
+        return result
+
     def _active_rules(self, config: RedactionConfig) -> tuple[RedactionRule, ...]:
         rules = self._registry.list_rules()
         enabled = set(config.enabled_rule_names) if config.enabled_rule_names is not None else None
@@ -97,3 +129,10 @@ class RedactionEngine:
         for placeholder, value in placeholders.items():
             updated = updated.replace(placeholder, value)
         return updated
+
+    def _context_with_file_path(self, context: RuleContext | None, file_path: str) -> RuleContext:
+        if context is None:
+            return RuleContext(file_path=file_path)
+        if context.file_path is not None:
+            return context
+        return RuleContext(file_path=file_path, metadata=context.metadata)

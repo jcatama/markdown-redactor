@@ -120,11 +120,37 @@ from markdown_redactor import RedactionConfig
 
 config = RedactionConfig(
     mask="<redacted>",
+    replacement_mode="full",
     skip_fenced_code_blocks=True,
     skip_inline_code=True,
 )
 
 result = engine.redact(content, config=config)
+```
+
+### Replacement modes
+
+Available modes:
+
+- `full`: replace the whole match with `mask`
+- `preserve_last4`: keep the last 4 alphanumeric characters
+- `preserve_format`: keep separators like `-`, `.`, `(`, `)` while masking characters
+
+```python
+config = RedactionConfig(replacement_mode="preserve_last4")
+```
+
+### File helpers
+
+You can redact files directly from the Python API.
+
+```python
+from markdown_redactor import create_default_engine
+
+engine = create_default_engine()
+
+result = engine.redact_file("input.md")
+result = engine.redact_to_file("input.md", "output.md")
 ```
 
 ### Allowlist specific values
@@ -194,6 +220,10 @@ markdown-redactor input.md -o output.md
 ### Useful flags
 
 - `--mask "<secret>"`: custom replacement value
+- `--replacement-mode preserve_last4`: control redaction rendering
+- `--allowlist jane@example.com`: preserve exact values
+- `--enable-rule email,jwt`: only run selected rules
+- `--disable-rule phone,swift_bic`: skip selected rules
 - `--redact-inline-code`: redact inside inline code spans (default is skip)
 - `--redact-fenced-code-blocks`: redact inside fenced blocks (default is skip)
 - `--stats`: print stats as JSON to stderr
@@ -202,6 +232,13 @@ Example:
 
 ```bash
 markdown-redactor input.md -o output.md --mask "<secret>" --stats
+```
+
+Examples with CLI filtering:
+
+```bash
+markdown-redactor input.md --allowlist jane@example.com --disable-rule phone
+markdown-redactor input.md --enable-rule email,jwt
 ```
 
 ## Makefile shortcuts

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from markdown_redactor import RedactionConfig, RedactionEngine, RuleRegistry, create_default_engine
@@ -72,6 +74,29 @@ def test_allowlist_preserves_exact_values() -> None:
     assert result.stats.rule_matches.get("ipv4", 0) == 1
 
 
+def test_redact_file_reads_source_and_sets_file_context(tmp_path: Path) -> None:
+    engine = create_default_engine()
+    input_file = tmp_path / "sample.md"
+    input_file.write_text("email jane@example.com", encoding="utf-8")
+
+    result = engine.redact_file(input_file)
+
+    assert "jane@example.com" not in result.content
+    assert result.stats.rule_matches.get("email", 0) == 1
+
+
+def test_redact_to_file_writes_output(tmp_path: Path) -> None:
+    engine = create_default_engine()
+    input_file = tmp_path / "in.md"
+    output_file = tmp_path / "out.md"
+    input_file.write_text("ip 10.0.0.1", encoding="utf-8")
+
+    result = engine.redact_to_file(input_file, output_file)
+
+    assert result.stats.rule_matches.get("ipv4", 0) == 1
+    assert "10.0.0.1" not in output_file.read_text(encoding="utf-8")
+
+
 def test_disabled_rule_names_skip_specific_default_rules() -> None:
     engine = create_default_engine()
     content = "email jane@example.com ip 10.0.0.1"
@@ -92,6 +117,48 @@ def test_enabled_rule_names_limit_active_rules() -> None:
     assert "jane@example.com" not in result.content
     assert "10.0.0.1" in result.content
     assert result.stats.rule_matches == {"email": 1}
+
+
+def test_preserve_last4_replacement_mode_keeps_last_four_characters() -> None:
+    engine = create_default_engine()
+
+    result = engine.redact(
+        "Card 4111 1111 1111 1111",
+        config=RedactionConfig(replacement_mode="preserve_last4"),
+    )
+
+    assert "1111" in result.content
+    assert "4111 1111 1111 1111" not in result.content
+    assert "XXXX" in result.content
+
+
+def test_preserve_format_replacement_mode_keeps_separators() -> None:
+    engine = create_default_engine()
+
+    result = engine.redact(
+        "Phone +1 (415) 555-2671",
+        config=RedactionConfig(replacement_mode="preserve_format"),
+    )
+
+    assert "+X (XXX) XXX-XXXX" in result.content
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Hostname: db.internal.local",
+        "Markdown link: [docs](https://example.com/docs)",
+        "password policy enabled for all users",
+        "Database URI without credentials postgres://admin@db.internal:5432/app",
+    ],
+)
+def test_false_positive_regressions_are_not_redacted(content: str) -> None:
+    engine = create_default_engine()
+
+    result = engine.redact(content)
+
+    assert result.content == content
+    assert result.stats.total_matches == 0
 
 
 def test_empty_registry_leaves_content_unchanged() -> None:

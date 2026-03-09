@@ -78,3 +78,50 @@ def test_cli_returns_error_code_for_missing_file(capsys: object) -> None:
     err = capsys.readouterr().err  # type: ignore[attr-defined]
     assert exit_code == 2
     assert "markdown-redactor:" in err
+
+
+def test_cli_replacement_mode_preserve_format(capsys: object, tmp_path: Path) -> None:
+    input_file = tmp_path / "in.md"
+    input_file.write_text("Phone +1 (415) 555-2671", encoding="utf-8")
+
+    exit_code = main([str(input_file), "--replacement-mode", "preserve_format"])
+
+    out = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert exit_code == 0
+    assert "+X (XXX) XXX-XXXX" in out
+
+
+def test_cli_allowlist_preserves_exact_value(capsys: object, tmp_path: Path) -> None:
+    input_file = tmp_path / "in.md"
+    input_file.write_text("email jane@example.com ip 10.0.0.1", encoding="utf-8")
+
+    exit_code = main([str(input_file), "--allowlist", "jane@example.com"])
+
+    out = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert exit_code == 0
+    assert "jane@example.com" in out
+    assert "10.0.0.1" not in out
+
+
+def test_cli_enable_rule_limits_active_rules(capsys: object, tmp_path: Path) -> None:
+    input_file = tmp_path / "in.md"
+    input_file.write_text("email jane@example.com ip 10.0.0.1", encoding="utf-8")
+
+    exit_code = main([str(input_file), "--enable-rule", "email"])
+
+    out = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert exit_code == 0
+    assert "jane@example.com" not in out
+    assert "10.0.0.1" in out
+
+
+def test_cli_disable_rule_skips_selected_rule(capsys: object, tmp_path: Path) -> None:
+    input_file = tmp_path / "in.md"
+    input_file.write_text("email jane@example.com ip 10.0.0.1", encoding="utf-8")
+
+    exit_code = main([str(input_file), "--disable-rule", "email"])
+
+    out = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert exit_code == 0
+    assert "jane@example.com" in out
+    assert "10.0.0.1" not in out

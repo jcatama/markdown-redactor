@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Literal, Protocol
 
 
 @dataclass(frozen=True, slots=True)
 class RedactionConfig:
     mask: str = "[REDACTED]"
+    replacement_mode: Literal["full", "preserve_last4", "preserve_format"] = "full"
     skip_fenced_code_blocks: bool = True
     skip_inline_code: bool = True
     allowlist: tuple[str, ...] = ()

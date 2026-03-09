@@ -8,6 +8,24 @@ from typing import cast
 from .types import RedactionConfig, RedactionRule, RuleContext
 
 
+def _replacement_value(value: str, config: RedactionConfig) -> str:
+    if config.replacement_mode == "full":
+        return config.mask
+
+    if config.replacement_mode == "preserve_format":
+        return "".join("X" if char.isalnum() else char for char in value)
+
+    significant_positions = [index for index, char in enumerate(value) if char.isalnum()]
+    if len(significant_positions) <= 4:
+        return config.mask
+
+    keep_positions = set(significant_positions[-4:])
+    return "".join(
+        char if (not char.isalnum() or index in keep_positions) else "X"
+        for index, char in enumerate(value)
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RegexRule:
     name: str
@@ -20,7 +38,11 @@ class RegexRule:
         config: RedactionConfig,
         context: RuleContext,
     ) -> tuple[str, int]:
-        replacement = config.mask if self.replacement is None else self.replacement
+        replacement = (
+            (lambda match: _replacement_value(match.group(0), config))
+            if self.replacement is None
+            else self.replacement
+        )
         updated, count = self.pattern.subn(replacement, content)
         return updated, count
 
@@ -59,7 +81,7 @@ class CreditCardRule:
             value = match.group(0)
             if _luhn_valid(value):
                 count += 1
-                return config.mask
+                return _replacement_value(value, config)
             return value
 
         updated = self.pattern.sub(_replace, content)
@@ -93,7 +115,7 @@ class PhoneRule:
             if not any(sep in value for sep in (" ", "-", ".", "(", ")")):
                 return value
             count += 1
-            return config.mask
+            return _replacement_value(value, config)
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -120,7 +142,7 @@ class LabelValueRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            return f"{match.group(1)}{config.mask}"
+            return f"{match.group(1)}{_replacement_value(match.group(2), config)}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -146,7 +168,8 @@ class SecretAssignmentRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            return f"{match.group(1)}{match.group(2)}{config.mask}{match.group(4)}"
+            replacement = _replacement_value(match.group(3), config)
+            return f"{match.group(1)}{match.group(2)}{replacement}{match.group(4)}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -171,7 +194,7 @@ class CredentialUriRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            return f"{match.group(1)}{config.mask}{match.group(3)}"
+            return f"{match.group(1)}{_replacement_value(match.group(2), config)}{match.group(3)}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -179,7 +202,7 @@ class CredentialUriRule:
 
 def default_rules() -> tuple[RedactionRule, ...]:
     email_pattern = re.compile(
-        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+        r"(?<!://)\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
     )
     ipv4_pattern = re.compile(
         r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"
