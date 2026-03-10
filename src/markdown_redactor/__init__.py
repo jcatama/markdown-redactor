@@ -16,6 +16,7 @@ from .types import (
     RedactionRule,
     RedactionStats,
     RuleContext,
+    RuleMetadata,
 )
 
 __version__ = "0.1.2"
@@ -36,6 +37,7 @@ __all__ = [
     "RedactionResult",
     "RedactionStats",
     "RuleContext",
+    "RuleMetadata",
     "RedactionRule",
     "__version__",
 ]

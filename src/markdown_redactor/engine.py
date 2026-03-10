@@ -6,7 +6,14 @@ from pathlib import Path
 
 from .markdown import segment_markdown
 from .registry import RuleRegistry
-from .types import RedactionConfig, RedactionResult, RedactionRule, RedactionStats, RuleContext
+from .types import (
+    _RISK_RANK,
+    RedactionConfig,
+    RedactionResult,
+    RedactionRule,
+    RedactionStats,
+    RuleContext,
+)
 
 
 class RedactionEngine:
@@ -99,11 +106,18 @@ class RedactionEngine:
         rules = self._registry.list_rules()
         enabled = set(config.enabled_rule_names) if config.enabled_rule_names is not None else None
         disabled = set(config.disabled_rule_names)
+        min_rank = _RISK_RANK[config.min_risk_level] if config.min_risk_level is not None else None
 
         return tuple(
             rule
             for rule in rules
-            if (enabled is None or rule.name in enabled) and rule.name not in disabled
+            if (enabled is None or rule.name in enabled)
+            and rule.name not in disabled
+            and (
+                min_rank is None
+                or rule.metadata is None
+                or _RISK_RANK[rule.metadata.risk_level] >= min_rank
+            )
         )
 
     def _protect_allowlist(

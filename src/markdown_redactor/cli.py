@@ -57,6 +57,12 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         action="append",
         help="Skip these rule names; repeat or use comma-separated values",
     )
+    parser.add_argument(
+        "--min-risk-level",
+        choices=("high", "medium", "low"),
+        default=None,
+        help="Only run rules at or above this risk level",
+    )
     parser.add_argument("--stats", action="store_true", help="Print stats as JSON to stderr")
     return parser.parse_args(argv)
 
@@ -81,6 +87,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _expand_multi_values(args.enable_rule) if args.enable_rule is not None else None
             ),
             disabled_rule_names=_expand_multi_values(args.disable_rule),
+            min_risk_level=args.min_risk_level,
         )
         result = engine.redact(source, config=config)
 

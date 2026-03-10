@@ -4,12 +4,19 @@ from dataclasses import dataclass
 
 import pytest
 
-from markdown_redactor import RedactionConfig, RedactionEngine, RuleContext, RuleRegistry
+from markdown_redactor import (
+    RedactionConfig,
+    RedactionEngine,
+    RuleContext,
+    RuleMetadata,
+    RuleRegistry,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class DemoRule:
     name: str = "demo"
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,

@@ -177,6 +177,33 @@ Disable specific rules:
 config = RedactionConfig(disabled_rule_names=("phone", "swift_bic"))
 ```
 
+### Filter rules by risk level
+
+Use `min_risk_level` to only run rules at or above a given severity. Useful when you want to reduce noise or target only critical data.
+
+```python
+config = RedactionConfig(min_risk_level="high")
+```
+
+Risk levels across the 24 built-in rules:
+
+| Level | Rules |
+|-------|-------|
+| `high` | SSN, NINO, PAN, Aadhaar, GSTIN, CPF, CNPJ, EIN, IBAN, labeled IDs, secrets, credentials, AWS keys, tokens, JWTs, private keys, credit cards |
+| `medium` | email, phone, SWIFT/BIC, EU VAT |
+| `low` | IPv4, IPv6 |
+
+### Inspect rule metadata
+
+Every built-in rule exposes `.metadata` with its `category`, `risk_level`, and `description`:
+
+```python
+for rule in engine.registry.list_rules():
+    m = rule.metadata
+    if m:
+        print(f"{rule.name:20s}  {m.category:12s}  {m.risk_level:6s}  {m.description}")
+```
+
 ### Add context metadata (optional)
 
 ```python
@@ -221,6 +248,7 @@ markdown-redactor input.md -o output.md
 
 - `--mask "<secret>"`: custom replacement value
 - `--replacement-mode preserve_last4`: control redaction rendering
+- `--min-risk-level high`: only run rules at or above this risk level (`high`, `medium`, `low`)
 - `--allowlist jane@example.com`: preserve exact values
 - `--enable-rule email,jwt`: only run selected rules
 - `--disable-rule phone,swift_bic`: skip selected rules

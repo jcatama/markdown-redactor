@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from markdown_redactor import RedactionConfig, RuleContext, create_tenant_engine
+from markdown_redactor import RedactionConfig, RuleContext, RuleMetadata, create_tenant_engine
 
 _TICKET_PATTERN = re.compile(r"\bTICKET-\w+\b")
 
@@ -11,6 +11,7 @@ _TICKET_PATTERN = re.compile(r"\bTICKET-\w+\b")
 @dataclass(frozen=True, slots=True)
 class TicketRule:
     name: str = "ticket_id"
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,

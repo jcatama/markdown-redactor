@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
-from .types import RedactionConfig, RedactionRule, RuleContext
+from .types import RedactionConfig, RedactionRule, RuleContext, RuleMetadata
 
 
 def _replacement_value(value: str, config: RedactionConfig) -> str:
@@ -31,6 +31,7 @@ class RegexRule:
     name: str
     pattern: re.Pattern[str]
     replacement: str | Callable[[re.Match[str]], str] | None = None
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -67,6 +68,7 @@ def _luhn_valid(number: str) -> bool:
 class CreditCardRule:
     name: str = "credit_card"
     pattern: re.Pattern[str] = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -95,6 +97,7 @@ class PhoneRule:
     ipv4_pattern: re.Pattern[str] = re.compile(
         r"^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$"
     )
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -130,6 +133,7 @@ class LabelValueRule:
         r"passport(?:\s*(?:no|num|#))?|aadhaar|pan|cpf|cnpj)\b\s*[:#-]?\s*)"
         r"([A-Z0-9][A-Z0-9\-/.\s]{4,30}[A-Z0-9])"
     )
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -156,6 +160,7 @@ class SecretAssignmentRule:
         r"refresh[_-]?token|client[_-]?secret|aws[_-]?secret[_-]?access[_-]?key)"
         r"\b\s*[:=]\s*)([\"']?)([^\s\"',;]{6,})([\"']?)"
     )
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -182,6 +187,7 @@ class CredentialUriRule:
         r"\b((?:postgres(?:ql)?|mysql|mariadb|mssql|redis|amqp|mongodb(?:\+srv)?):"
         r"//[^:\s/]+:)([^@\s/]+)(@)"
     )
+    metadata: RuleMetadata | None = None
 
     def redact(
         self,
@@ -251,29 +257,211 @@ def default_rules() -> tuple[RedactionRule, ...]:
     return cast(
         tuple[RedactionRule, ...],
         (
-            CredentialUriRule(),
-            RegexRule(name="email", pattern=_EMAIL_PATTERN),
-            RegexRule(name="us_ssn", pattern=_US_SSN_PATTERN),
-            RegexRule(name="us_ein", pattern=_US_EIN_PATTERN),
-            RegexRule(name="uk_nino", pattern=_UK_NINO_PATTERN),
-            RegexRule(name="in_pan", pattern=_IN_PAN_PATTERN),
-            RegexRule(name="in_aadhaar", pattern=_IN_AADHAAR_PATTERN),
-            RegexRule(name="in_gstin", pattern=_IN_GSTIN_PATTERN),
-            RegexRule(name="br_cpf", pattern=_BR_CPF_PATTERN),
-            RegexRule(name="br_cnpj", pattern=_BR_CNPJ_PATTERN),
-            RegexRule(name="iban", pattern=_IBAN_PATTERN),
-            RegexRule(name="swift_bic", pattern=_SWIFT_BIC_PATTERN),
-            RegexRule(name="eu_vat", pattern=_EU_VAT_PATTERN),
-            LabelValueRule(),
-            SecretAssignmentRule(),
-            PhoneRule(),
-            RegexRule(name="ipv4", pattern=_IPV4_PATTERN),
-            RegexRule(name="ipv6", pattern=_IPV6_PATTERN),
-            RegexRule(name="aws_access_key", pattern=_AWS_KEY_PATTERN),
-            RegexRule(name="generic_token", pattern=_GENERIC_TOKEN_PATTERN),
-            RegexRule(name="google_api_key", pattern=_GOOGLE_API_KEY_PATTERN),
-            RegexRule(name="jwt", pattern=_JWT_PATTERN),
-            RegexRule(name="private_key", pattern=_PRIVATE_KEY_PATTERN),
-            CreditCardRule(),
+            CredentialUriRule(
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="Service URI with embedded plaintext password",
+                ),
+            ),
+            RegexRule(
+                name="email",
+                pattern=_EMAIL_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="medium",
+                    description="Email address",
+                ),
+            ),
+            RegexRule(
+                name="us_ssn",
+                pattern=_US_SSN_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="US Social Security Number",
+                ),
+            ),
+            RegexRule(
+                name="us_ein",
+                pattern=_US_EIN_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="US Employer Identification Number",
+                ),
+            ),
+            RegexRule(
+                name="uk_nino",
+                pattern=_UK_NINO_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="UK National Insurance Number",
+                ),
+            ),
+            RegexRule(
+                name="in_pan",
+                pattern=_IN_PAN_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Indian Permanent Account Number (PAN)",
+                ),
+            ),
+            RegexRule(
+                name="in_aadhaar",
+                pattern=_IN_AADHAAR_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Indian Aadhaar identification number",
+                ),
+            ),
+            RegexRule(
+                name="in_gstin",
+                pattern=_IN_GSTIN_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Indian GST Identification Number",
+                ),
+            ),
+            RegexRule(
+                name="br_cpf",
+                pattern=_BR_CPF_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Brazilian individual taxpayer number (CPF)",
+                ),
+            ),
+            RegexRule(
+                name="br_cnpj",
+                pattern=_BR_CNPJ_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Brazilian company registration number (CNPJ)",
+                ),
+            ),
+            RegexRule(
+                name="iban",
+                pattern=_IBAN_PATTERN,
+                metadata=RuleMetadata(
+                    category="financial",
+                    risk_level="high",
+                    description="International Bank Account Number (IBAN)",
+                ),
+            ),
+            RegexRule(
+                name="swift_bic",
+                pattern=_SWIFT_BIC_PATTERN,
+                metadata=RuleMetadata(
+                    category="financial",
+                    risk_level="medium",
+                    description="SWIFT/BIC bank identifier code",
+                ),
+            ),
+            RegexRule(
+                name="eu_vat",
+                pattern=_EU_VAT_PATTERN,
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="medium",
+                    description="EU VAT registration number",
+                ),
+            ),
+            LabelValueRule(
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="high",
+                    description="Labeled sensitive ID (passport, DL, tax ID, etc.)",
+                ),
+            ),
+            SecretAssignmentRule(
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="Plaintext secret, password, or API key assignment",
+                ),
+            ),
+            PhoneRule(
+                metadata=RuleMetadata(
+                    category="pii",
+                    risk_level="medium",
+                    description="Phone number",
+                ),
+            ),
+            RegexRule(
+                name="ipv4",
+                pattern=_IPV4_PATTERN,
+                metadata=RuleMetadata(
+                    category="network",
+                    risk_level="low",
+                    description="IPv4 address",
+                ),
+            ),
+            RegexRule(
+                name="ipv6",
+                pattern=_IPV6_PATTERN,
+                metadata=RuleMetadata(
+                    category="network",
+                    risk_level="low",
+                    description="IPv6 address",
+                ),
+            ),
+            RegexRule(
+                name="aws_access_key",
+                pattern=_AWS_KEY_PATTERN,
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="AWS access key ID",
+                ),
+            ),
+            RegexRule(
+                name="generic_token",
+                pattern=_GENERIC_TOKEN_PATTERN,
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="Service API token (GitHub, GitLab, Stripe, Slack, etc.)",
+                ),
+            ),
+            RegexRule(
+                name="google_api_key",
+                pattern=_GOOGLE_API_KEY_PATTERN,
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="Google API key",
+                ),
+            ),
+            RegexRule(
+                name="jwt",
+                pattern=_JWT_PATTERN,
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="JSON Web Token (JWT)",
+                ),
+            ),
+            RegexRule(
+                name="private_key",
+                pattern=_PRIVATE_KEY_PATTERN,
+                metadata=RuleMetadata(
+                    category="credential",
+                    risk_level="high",
+                    description="PEM-encoded private key block",
+                ),
+            ),
+            CreditCardRule(
+                metadata=RuleMetadata(
+                    category="financial",
+                    risk_level="high",
+                    description="Credit or debit card number (Luhn-validated)",
+                ),
+            ),
         ),
     )

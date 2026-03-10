@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from markdown_redactor import RedactionConfig, RedactionEngine, RuleRegistry, create_default_engine
+from markdown_redactor import (
+    RedactionConfig,
+    RedactionEngine,
+    RuleRegistry,
+    create_default_engine,
+    default_rules,
+)
 
 
 def test_redacts_sensitive_values() -> None:
@@ -276,3 +282,29 @@ def test_redaction_scaling_is_reasonable_for_large_input() -> None:
     scaling_ratio = large.stats.elapsed_ms / baseline_ms
     assert scaling_ratio < 8
     assert large.stats.elapsed_ms < 3000
+
+
+def test_min_risk_level_high_excludes_medium_and_low_rules() -> None:
+    engine = create_default_engine()
+    content = "ssn 123-45-6789 email jane@example.com ip 10.0.0.1"
+
+    result = engine.redact(content, config=RedactionConfig(min_risk_level="high"))
+
+    assert "123-45-6789" not in result.content
+    assert "jane@example.com" in result.content
+    assert "10.0.0.1" in result.content
+
+
+def test_min_risk_level_medium_includes_medium_excludes_low() -> None:
+    engine = create_default_engine()
+    content = "email jane@example.com ip 10.0.0.1"
+
+    result = engine.redact(content, config=RedactionConfig(min_risk_level="medium"))
+
+    assert "jane@example.com" not in result.content
+    assert "10.0.0.1" in result.content
+
+
+def test_all_default_rules_have_metadata() -> None:
+    for rule in default_rules():
+        assert rule.metadata is not None, f"Rule {rule.name!r} is missing metadata"
