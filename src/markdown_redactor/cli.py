@@ -100,7 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stderr.write(json.dumps(payload, separators=(",", ":")) + "\n")
 
         return 0
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"markdown-redactor: {exc}\n")
         return 2
 

@@ -10,10 +10,13 @@ class RuleRegistry:
         self._rules: list[RedactionRule] = []
 
     def register(self, rule: RedactionRule) -> None:
+        if any(r.name == rule.name for r in self._rules):
+            raise ValueError(f"Rule {rule.name!r} is already registered")
         self._rules.append(rule)
 
     def extend(self, rules: Iterable[RedactionRule]) -> None:
-        self._rules.extend(rules)
+        for rule in rules:
+            self.register(rule)
 
     def list_rules(self) -> tuple[RedactionRule, ...]:
         return tuple(self._rules)

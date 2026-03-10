@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from markdown_redactor import RedactionConfig, RuleContext, create_tenant_engine
+
+_TICKET_PATTERN = re.compile(r"\bTICKET-\w+\b")
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,8 +18,7 @@ class TicketRule:
         config: RedactionConfig,
         context: RuleContext,
     ) -> tuple[str, int]:
-        updated = content.replace("TICKET-", f"{config.mask}-")
-        count = content.count("TICKET-")
+        updated, count = _TICKET_PATTERN.subn(config.mask, content)
         return updated, count
 
 

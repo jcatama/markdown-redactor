@@ -248,6 +248,9 @@ def test_default_rules_matrix_redacts(content: str, rule_name: str) -> None:
         "Near miss AWS: AKIAABCDEF",
         "Invalid IPv4 token: 999x999x999x999",
         "Random token: ghp_short",
+        "Plain 9-digit number: 123456789",
+        "All-caps word: REQUIRED",
+        "Unknown country IBAN: XX89370400440532013000",
     ],
 )
 def test_default_rules_matrix_ignores_near_miss_patterns(content: str) -> None:

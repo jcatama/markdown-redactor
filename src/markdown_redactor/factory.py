@@ -21,13 +21,15 @@ def create_tenant_engine(
     tenant_rules_first: bool = False,
 ) -> RedactionEngine:
     registry = RuleRegistry()
+    tenant_list = list(tenant_rules)
+    tenant_names = {rule.name for rule in tenant_list}
 
     if include_default_rules and not tenant_rules_first:
         registry.extend(default_rules())
 
-    registry.extend(tenant_rules)
+    registry.extend(tenant_list)
 
     if include_default_rules and tenant_rules_first:
-        registry.extend(default_rules())
+        registry.extend(rule for rule in default_rules() if rule.name not in tenant_names)
 
     return RedactionEngine(registry=registry)

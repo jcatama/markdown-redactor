@@ -83,7 +83,7 @@ def _split_inline_code(line: str) -> Iterator[Segment]:
             i += 1
             while i < len(line) and line[i] == "`":
                 i += 1
-            yield Segment(text=line[start:i], redactable=not in_code)
+            yield Segment(text=line[start:i], redactable=False)
             start = i
             continue
         i += 1
