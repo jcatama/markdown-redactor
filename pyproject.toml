@@ -4,13 +4,24 @@ build-backend = "hatchling.build"
 
 [project]
 name = "markdown-redactor"
-version = "0.1.2"
-description = "Lightweight, pluggable markdown redaction library for LLM pipelines"
+version = "0.1.3"
+description = "Rule-based PII and secret redaction for Markdown documents — audit log, risk-level filtering, LLM pipeline ready"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "markdown-redactor" }]
-keywords = ["markdown", "redaction", "pii", "llm", "security"]
+keywords = [
+  "markdown",
+  "redaction",
+  "pii",
+  "llm",
+  "security",
+  "sanitization",
+  "audit-log",
+  "compliance",
+  "data-privacy",
+  "secret-detection",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3",
@@ -20,7 +31,10 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "License :: OSI Approved :: MIT License",
   "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
   "Topic :: Security",
+  "Topic :: Text Processing :: Markup",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = []
 

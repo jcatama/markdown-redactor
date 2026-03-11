@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
 
 from markdown_redactor import (
+    AuditEntry,
     RedactionConfig,
     RedactionEngine,
     RuleRegistry,
@@ -308,3 +310,79 @@ def test_min_risk_level_medium_includes_medium_excludes_low() -> None:
 def test_all_default_rules_have_metadata() -> None:
     for rule in default_rules():
         assert rule.metadata is not None, f"Rule {rule.name!r} is missing metadata"
+
+
+def test_audit_log_disabled_by_default() -> None:
+    engine = create_default_engine()
+    result = engine.redact("Contact jane@example.com")
+
+    assert result.audit_log == ()
+
+
+def test_audit_log_records_entry_when_enabled() -> None:
+    engine = create_default_engine()
+    result = engine.redact(
+        "Contact jane@example.com",
+        config=RedactionConfig(collect_audit_log=True),
+    )
+
+    assert len(result.audit_log) == 1
+    entry = result.audit_log[0]
+    assert isinstance(entry, AuditEntry)
+    assert entry.rule_name == "email"
+    assert entry.replacement == "[REDACTED]"
+    expected_hash = hashlib.sha256(b"jane@example.com").hexdigest()[:16]
+    assert entry.original_hash == expected_hash
+
+
+def test_audit_log_positions_are_correct() -> None:
+    engine = create_default_engine()
+    content = "Contact jane@example.com please"
+    result = engine.redact(content, config=RedactionConfig(collect_audit_log=True))
+
+    assert len(result.audit_log) == 1
+    entry = result.audit_log[0]
+    assert content[entry.start : entry.end] == "jane@example.com"
+
+
+def test_audit_log_multiple_matches() -> None:
+    engine = create_default_engine()
+    content = "a@b.com and c@d.com"
+    result = engine.redact(content, config=RedactionConfig(collect_audit_log=True))
+
+    assert len(result.audit_log) == 2
+    assert result.audit_log[0].rule_name == "email"
+    assert result.audit_log[1].rule_name == "email"
+    assert content[result.audit_log[0].start : result.audit_log[0].end] == "a@b.com"
+    assert content[result.audit_log[1].start : result.audit_log[1].end] == "c@d.com"
+
+
+def test_audit_log_credit_card_only_logs_luhn_valid() -> None:
+    engine = create_default_engine()
+    content = "Card: 4111 1111 1111 1111 and invalid 1234 5678 9012 3456"
+    result = engine.redact(content, config=RedactionConfig(collect_audit_log=True))
+
+    cc_entries = [e for e in result.audit_log if e.rule_name == "credit_card"]
+    assert len(cc_entries) == 1
+    assert content[cc_entries[0].start : cc_entries[0].end] == "4111 1111 1111 1111"
+
+
+def test_audit_log_secret_assignment_reports_value_subgroup_position() -> None:
+    engine = create_default_engine()
+    content = "password=supersecret123"
+    result = engine.redact(content, config=RedactionConfig(collect_audit_log=True))
+
+    entries = [e for e in result.audit_log if e.rule_name == "secret_assignment"]
+    assert len(entries) == 1
+    assert content[entries[0].start : entries[0].end] == "supersecret123"
+
+
+def test_audit_log_is_empty_when_no_matches() -> None:
+    engine = create_default_engine()
+    result = engine.redact(
+        "Nothing sensitive here.",
+        config=RedactionConfig(collect_audit_log=True),
+    )
+
+    assert result.audit_log == ()
+

@@ -5,7 +5,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
-from .types import RedactionConfig, RedactionRule, RuleContext, RuleMetadata
+from .types import (
+    AuditEntry,
+    RedactionConfig,
+    RedactionRule,
+    RuleContext,
+    RuleMetadata,
+    _hash_value,
+)
 
 
 def _replacement_value(value: str, config: RedactionConfig) -> str:
@@ -39,6 +46,34 @@ class RegexRule:
         config: RedactionConfig,
         context: RuleContext,
     ) -> tuple[str, int]:
+        if context.audit_entries is not None:
+            count = 0
+            audit_entries = context.audit_entries
+
+            def _auditing_replace(match: re.Match[str]) -> str:
+                nonlocal count
+                count += 1
+                orig = match.group(0)
+                if self.replacement is None:
+                    repl = _replacement_value(orig, config)
+                elif callable(self.replacement):
+                    repl = self.replacement(match)
+                else:
+                    repl = self.replacement
+                audit_entries.append(
+                    AuditEntry(
+                        rule_name=self.name,
+                        start=context.segment_start + match.start(),
+                        end=context.segment_start + match.end(),
+                        original_hash=_hash_value(orig),
+                        replacement=repl,
+                    )
+                )
+                return repl
+
+            updated = self.pattern.sub(_auditing_replace, content)
+            return updated, count
+
         replacement = (
             (lambda match: _replacement_value(match.group(0), config))
             if self.replacement is None
@@ -83,7 +118,18 @@ class CreditCardRule:
             value = match.group(0)
             if _luhn_valid(value):
                 count += 1
-                return _replacement_value(value, config)
+                repl = _replacement_value(value, config)
+                if context.audit_entries is not None:
+                    context.audit_entries.append(
+                        AuditEntry(
+                            rule_name=self.name,
+                            start=context.segment_start + match.start(),
+                            end=context.segment_start + match.end(),
+                            original_hash=_hash_value(value),
+                            replacement=repl,
+                        )
+                    )
+                return repl
             return value
 
         updated = self.pattern.sub(_replace, content)
@@ -118,7 +164,18 @@ class PhoneRule:
             if not any(sep in value for sep in (" ", "-", ".", "(", ")")):
                 return value
             count += 1
-            return _replacement_value(value, config)
+            repl = _replacement_value(value, config)
+            if context.audit_entries is not None:
+                context.audit_entries.append(
+                    AuditEntry(
+                        rule_name=self.name,
+                        start=context.segment_start + match.start(),
+                        end=context.segment_start + match.end(),
+                        original_hash=_hash_value(value),
+                        replacement=repl,
+                    )
+                )
+            return repl
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -146,7 +203,18 @@ class LabelValueRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            return f"{match.group(1)}{_replacement_value(match.group(2), config)}"
+            repl = _replacement_value(match.group(2), config)
+            if context.audit_entries is not None:
+                context.audit_entries.append(
+                    AuditEntry(
+                        rule_name=self.name,
+                        start=context.segment_start + match.start(2),
+                        end=context.segment_start + match.end(2),
+                        original_hash=_hash_value(match.group(2)),
+                        replacement=repl,
+                    )
+                )
+            return f"{match.group(1)}{repl}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -173,8 +241,18 @@ class SecretAssignmentRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            replacement = _replacement_value(match.group(3), config)
-            return f"{match.group(1)}{match.group(2)}{replacement}{match.group(4)}"
+            repl = _replacement_value(match.group(3), config)
+            if context.audit_entries is not None:
+                context.audit_entries.append(
+                    AuditEntry(
+                        rule_name=self.name,
+                        start=context.segment_start + match.start(3),
+                        end=context.segment_start + match.end(3),
+                        original_hash=_hash_value(match.group(3)),
+                        replacement=repl,
+                    )
+                )
+            return f"{match.group(1)}{match.group(2)}{repl}{match.group(4)}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count
@@ -200,7 +278,18 @@ class CredentialUriRule:
         def _replace(match: re.Match[str]) -> str:
             nonlocal count
             count += 1
-            return f"{match.group(1)}{_replacement_value(match.group(2), config)}{match.group(3)}"
+            repl = _replacement_value(match.group(2), config)
+            if context.audit_entries is not None:
+                context.audit_entries.append(
+                    AuditEntry(
+                        rule_name=self.name,
+                        start=context.segment_start + match.start(2),
+                        end=context.segment_start + match.end(2),
+                        original_hash=_hash_value(match.group(2)),
+                        replacement=repl,
+                    )
+                )
+            return f"{match.group(1)}{repl}{match.group(3)}"
 
         updated = self.pattern.sub(_replace, content)
         return updated, count

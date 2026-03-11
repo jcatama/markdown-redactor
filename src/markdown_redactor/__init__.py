@@ -11,6 +11,7 @@ from .rules import (
     default_rules,
 )
 from .types import (
+    AuditEntry,
     RedactionConfig,
     RedactionResult,
     RedactionRule,
@@ -19,7 +20,7 @@ from .types import (
     RuleMetadata,
 )
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __all__ = [
     "RedactionEngine",
@@ -38,6 +39,7 @@ __all__ = [
     "RedactionStats",
     "RuleContext",
     "RuleMetadata",
+    "AuditEntry",
     "RedactionRule",
     "__version__",
 ]

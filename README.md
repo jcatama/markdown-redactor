@@ -222,6 +222,37 @@ result = engine.redact(content, context=context)
 - `elapsed_ms`: execution time for this call
 - `source_bytes` and `output_bytes`: input/output size in bytes
 
+### Audit log
+
+Enable the audit log to collect a structured record of every redaction — including rule name, character offsets, replacement value, and a truncated SHA-256 hash of the original text (for compliance without storing raw sensitive data).
+
+```python
+from markdown_redactor import RedactionConfig, create_default_engine
+
+engine = create_default_engine()
+result = engine.redact(
+    "Contact jane@example.com or call +1 (555) 123-4567",
+    config=RedactionConfig(collect_audit_log=True),
+)
+
+for entry in result.audit_log:
+    print(entry.rule_name, entry.start, entry.end, entry.original_hash, entry.replacement)
+# email  8  24  a3f1b2c4d5e6f789  [REDACTED]
+# phone  32  50  7c8d9e0f1a2b3c4d  [REDACTED]
+```
+
+Each `AuditEntry` is a frozen dataclass with:
+
+| Field | Type | Description |
+|---|---|---|
+| `rule_name` | `str` | Name of the rule that triggered the redaction |
+| `start` | `int` | 0-based start offset in the original input string |
+| `end` | `int` | 0-based exclusive end offset in the original input string |
+| `original_hash` | `str` | First 16 hex chars of SHA-256 of the matched text |
+| `replacement` | `str` | Replacement string that was written to the output |
+
+> **Note:** `collect_audit_log` is `False` by default. Offsets are relative to the original input text. When an allowlist is configured, character positions for matches that appear after allowlisted values may be slightly shifted due to placeholder substitution during processing.
+
 ## CLI guide
 
 ### Input and output

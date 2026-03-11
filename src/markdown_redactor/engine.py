@@ -8,6 +8,7 @@ from .markdown import segment_markdown
 from .registry import RuleRegistry
 from .types import (
     _RISK_RANK,
+    AuditEntry,
     RedactionConfig,
     RedactionResult,
     RedactionRule,
@@ -38,6 +39,8 @@ class RedactionEngine:
         rule_counts: defaultdict[str, int] = defaultdict(int)
         output: list[str] = []
         active_rules = self._active_rules(active_config)
+        all_audit: list[AuditEntry] = []
+        content_offset = 0
 
         for segment in segment_markdown(
             content,
@@ -45,16 +48,24 @@ class RedactionEngine:
             skip_inline_code=active_config.skip_inline_code,
         ):
             if not segment.redactable:
+                content_offset += len(segment.text)
                 output.append(segment.text)
                 continue
 
+            seg_context = RuleContext(
+                file_path=active_context.file_path,
+                metadata=active_context.metadata,
+                audit_entries=all_audit if active_config.collect_audit_log else None,
+                segment_start=content_offset,
+            )
             updated, placeholders = self._protect_allowlist(segment.text, active_config)
             for rule in active_rules:
-                updated, count = rule.redact(updated, active_config, active_context)
+                updated, count = rule.redact(updated, active_config, seg_context)
                 if count:
                     rule_counts[rule.name] += count
             updated = self._restore_allowlist(updated, placeholders)
             output.append(updated)
+            content_offset += len(segment.text)
 
         redacted_content = "".join(output)
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -69,6 +80,7 @@ class RedactionEngine:
                 source_bytes=len(content.encode("utf-8")),
                 output_bytes=len(redacted_content.encode("utf-8")),
             ),
+            audit_log=tuple(all_audit),
         )
 
     def redact_file(
