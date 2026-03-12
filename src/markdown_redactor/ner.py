@@ -18,7 +18,9 @@ def _get_nlp(model: str) -> Language:
             import spacy
         except ImportError as exc:
             raise ImportError(
-                "spacy is required for NERRule."
+                "spacy is required for NERRule.\n"
+                "Install it with: pip install 'markdown-redactor[ner]'\n"
+                "Then download a model: python -m spacy download en_core_web_sm"
             ) from exc
         _NLP_CACHE[model] = spacy.load(model)
     return _NLP_CACHE[model]
