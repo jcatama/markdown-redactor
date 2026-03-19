@@ -6,6 +6,7 @@ Detailed usage guide for the Python API, CLI, Makefile shortcuts, copy/paste rec
 
 - [Quickstart (5 minutes)](#quickstart-5-minutes)
 - [Python API guide](#python-api-guide)
+  - [Named-entity redaction (NER)](#named-entity-redaction-ner)
 - [CLI guide](#cli-guide)
 - [Makefile shortcuts](#makefile-shortcuts)
 - [Copy/paste recipes](#copypaste-recipes)
@@ -199,6 +200,42 @@ Each `AuditEntry` is a frozen dataclass with:
 | `replacement` | `str` | Replacement string that was written to the output |
 
 > **Note:** `collect_audit_log` is `False` by default. Offsets are relative to the original input text. When an allowlist is configured, character positions for matches that appear after allowlisted values may be slightly shifted due to placeholder substitution during processing.
+
+### Named-entity redaction (NER)
+
+`NERRule` detects and redacts named entities using a spaCy pipeline. It is an **opt-in dependency** — install the extra and a model before use:
+
+```bash
+pip install 'markdown-redactor[ner]'
+python -m spacy download en_core_web_sm
+```
+
+```python
+from markdown_redactor import NERRule, create_default_engine
+
+engine = create_default_engine()
+engine.registry.register(NERRule())
+
+result = engine.redact("Send the report to Alice Johnson at Acme Corp.")
+print(result.content)
+# Send the report to [REDACTED] at [REDACTED].
+```
+
+**Default entity labels** detected: `PERSON`, `ORG`, `GPE` (geopolitical entity), `LOC`. Use `entity_labels` to narrow the scope:
+
+```python
+NERRule(entity_labels=frozenset({"PERSON"}))  # people only
+```
+
+**Choosing a model** — any spaCy pipeline with an NER component works:
+
+| Model | Size | Notes |
+|---|---|---|
+| `en_core_web_sm` | ~12 MB | Default · fast |
+| `en_core_web_md` | ~43 MB | Better accuracy |
+| `en_core_web_trf` | ~400 MB | Transformer-based · highest accuracy |
+
+> `NERRule` loads the model lazily on the first `redact()` call and caches it for the lifetime of the process. Constructing `NERRule()` without spaCy installed is safe — the `ImportError` is only raised when `redact()` is called.
 
 ## CLI guide
 

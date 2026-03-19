@@ -1,5 +1,6 @@
 from .engine import RedactionEngine
 from .factory import create_default_engine, create_tenant_engine
+from .ner import NERRule
 from .registry import RuleRegistry
 from .rules import (
     CredentialUriRule,
@@ -20,13 +21,14 @@ from .types import (
     RuleMetadata,
 )
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = [
     "RedactionEngine",
     "create_default_engine",
     "create_tenant_engine",
     "RuleRegistry",
+    "NERRule",
     "default_rules",
     "CreditCardRule",
     "CredentialUriRule",

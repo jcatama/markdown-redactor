@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "markdown-redactor"
-version = "0.1.3"
+version = "0.1.4"
 description = "Rule-based PII and secret redaction for Markdown documents — audit log, risk-level filtering, LLM pipeline ready"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,6 +45,7 @@ dev = [
   "ruff>=0.6.0",
   "mypy>=1.11.0",
 ]
+ner = ["spacy>=3.7.0"]
 
 [project.scripts]
 markdown-redactor = "markdown_redactor.cli:main"
@@ -64,6 +65,10 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.10"
 strict = true
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["spacy", "spacy.*"]
+ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/markdown_redactor"]

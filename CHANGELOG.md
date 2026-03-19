@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 This project follows semantic versioning.
 
+## [0.1.4] - 2026-03-11
+
+### Added
+
+- `NERRule` — named-entity redaction via spaCy; detects `PERSON`, `ORG`, `GPE`, and `LOC` entities by default
+- `ner` optional dependency extra: `pip install 'markdown-redactor[ner]'`
+- `NERRule` exported from package root
+- Full audit log support in `NERRule` (respects `collect_audit_log` / `RuleContext.audit_entries`)
+
 ## [0.1.3] - 2026-03-10
 
 ### Fixed
